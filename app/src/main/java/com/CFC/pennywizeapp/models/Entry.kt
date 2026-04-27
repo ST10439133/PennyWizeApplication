@@ -9,14 +9,15 @@ data class Entry(
     val id: String = java.util.UUID.randomUUID().toString(),
 
     val amount: Double,
-
     val categoryId: String, // Links to Category
 
     val note: String? = null,
 
     val timestamp: Long = System.currentTimeMillis(),
 
-    val type: EntryType // INCOME or EXPENSE
+    val type: EntryType,
+
+    val attachmentUri: String? = null
 )
 
 enum class EntryType {

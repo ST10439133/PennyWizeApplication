@@ -1,4 +1,4 @@
-package com.CFC.pennywizeapp.ui.theme
+package com.CFC.pennywizeapp.theme
 
 import androidx.compose.ui.graphics.Color
 
