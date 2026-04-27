@@ -35,7 +35,7 @@ fun AddEntryScreen(
     var expandedType by remember { mutableStateOf(false) }
     var expandedCategory by remember { mutableStateOf(false) }
 
-    // ✅ FILE PICKER
+    // 📎 FILE PICKER
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -44,7 +44,7 @@ fun AddEntryScreen(
         selectedFileUri = uri
     }
 
-    // ✅ DATE PICKER
+    // 📅 DATE PICKER
     var selectedDate by remember { mutableStateOf(System.currentTimeMillis()) }
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
@@ -70,7 +70,7 @@ fun AddEntryScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
-            // TYPE
+            // 🔽 TYPE DROPDOWN
             ExposedDropdownMenuBox(
                 expanded = expandedType,
                 onExpandedChange = { expandedType = !expandedType }
@@ -93,14 +93,14 @@ fun AddEntryScreen(
                             onClick = {
                                 selectedType = type
                                 expandedType = false
-                                selectedCategory = null
+                                selectedCategory = null // reset category
                             }
                         )
                     }
                 }
             }
 
-            // CATEGORY
+            // 🔽 CATEGORY DROPDOWN (FIXED HERE)
             ExposedDropdownMenuBox(
                 expanded = expandedCategory,
                 onExpandedChange = { expandedCategory = !expandedCategory }
@@ -118,8 +118,13 @@ fun AddEntryScreen(
                     expanded = expandedCategory,
                     onDismissRequest = { expandedCategory = false }
                 ) {
+
+                    val mappedType = runCatching {
+                        CategoryType.valueOf(selectedType.name)
+                    }.getOrNull()
+
                     categories
-                        .filter { it.type.name == selectedType.name }
+                        .filter { it.type == mappedType }
                         .forEach { category ->
                             DropdownMenuItem(
                                 text = { Text(category.name) },
@@ -132,7 +137,7 @@ fun AddEntryScreen(
                 }
             }
 
-            // AMOUNT
+            // 💰 AMOUNT
             OutlinedTextField(
                 value = amount,
                 onValueChange = { amount = it },
@@ -141,7 +146,7 @@ fun AddEntryScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // NOTE
+            // 📝 NOTE
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
@@ -175,7 +180,7 @@ fun AddEntryScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // SAVE BUTTON
+            // ✅ SAVE BUTTON
             Button(
                 onClick = {
                     val amountValue = amount.toDoubleOrNull()
@@ -201,7 +206,7 @@ fun AddEntryScreen(
         }
     }
 
-    // DATE PICKER DIALOG
+    // 📅 DATE PICKER DIALOG
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
