@@ -1,14 +1,6 @@
 import java.util.Properties
 import kotlin.apply
 
-plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.ksp)
-    // REMOVED: firebase google-services plugin (not needed now)
-}
-
 val localProperties = Properties().apply {
     val file = rootProject.file("local.properties")
     if (file.exists()) {
@@ -16,8 +8,17 @@ val localProperties = Properties().apply {
     }
 }
 
-val supabaseUrl = localProperties.getProperty("SUPABASE_URL", "")
-val supabaseKey = localProperties.getProperty("SUPABASE_PUBLISHABLE_KEY", "")
+// 2. Extract the values into variables
+val supabaseUrl = localProperties.getProperty("SUPABASE_URL") ?: ""
+val supabaseKey = localProperties.getProperty("SUPABASE_ANON_KEY") ?: ""
+
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
+
+}
 
 android {
 
