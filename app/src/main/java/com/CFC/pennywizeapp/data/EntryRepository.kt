@@ -1,57 +1,121 @@
 package com.CFC.pennywizeapp.data
 
+import android.content.Context
+import android.graphics.Bitmap
+import com.CFC.pennywizeapp.data.local.DatabaseProvider
 import com.CFC.pennywizeapp.models.Entry
 import com.CFC.pennywizeapp.models.EntryType
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import java.util.Calendar
+import com.CFC.pennywizeapp.utils.saveImageToInternalStorage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import java.util.UUID
 
-object EntryRepository {
-    // Helper function to generate a specific date for testing
-    private fun getMockDate(day: Int): Long {
-        return Calendar.getInstance().apply {
-            set(2026, Calendar.APRIL, day, 12, 0) // April 2026
-        }.timeInMillis
+class EntryRepository private constructor(private val context: Context) {
+
+    private val database = DatabaseProvider.getDatabase(context)
+    private val entryDao = database.entryDao()
+
+    private var currentUserId: String = ""
+    private var currentJob: kotlinx.coroutines.Job? = null
+
+    private val _entries: MutableStateFlow<List<Entry>> = MutableStateFlow(emptyList())
+    val entries: StateFlow<List<Entry>> = _entries.asStateFlow()
+
+    /**
+     * Set the current logged-in user and load their data
+     * Call this after successful login
+     */
+    fun setCurrentUser(userId: String) {
+        if (currentUserId == userId) return
+
+        // Cancel previous collection job
+        currentJob?.cancel()
+
+        currentUserId = userId
+
+        // Start new collection for this user
+        currentJob = CoroutineScope(Dispatchers.IO).launch {
+            entryDao.getEntriesByUserId(userId)
+                .catch { e -> e.printStackTrace() }
+                .collect { entryList ->
+                    _entries.value = entryList
+                }
+        }
     }
 
-    private val _entries = MutableStateFlow<List<Entry>>(listOf(
-        // April 27th (Today)
-        Entry(
-            amount = 150.0,
-            categoryId = "1",
-            note = "Weekly Shop",
-            type = EntryType.EXPENSE,
-            timestamp = getMockDate(27)
-        ),
-        // April 25th
-        Entry(
-            amount = 50.0,
-            categoryId = "2",
-            note = "Bus Pass",
-            type = EntryType.EXPENSE,
-            timestamp = getMockDate(25)
-        ),
-        // April 20th
-        Entry(
-            amount = 200.0,
-            categoryId = "1",
-            note = "Dinner Out",
-            type = EntryType.EXPENSE,
-            timestamp = getMockDate(20)
-        ),
-        // April 1st
-        Entry(
-            amount = 5000.0,
-            categoryId = "3",
-            note = "Monthly Pay",
-            type = EntryType.INCOME,
-            timestamp = getMockDate(1)
-        )
-    ))
+    fun clearCurrentUser() {
+        currentJob?.cancel()
+        currentUserId = ""
+        _entries.value = emptyList()
+    }
 
-    val entries: StateFlow<List<Entry>> = _entries
+    fun getCurrentUserId(): String = currentUserId
+
+    fun addEntry(
+        amount: Double,
+        categoryId: String,
+        type: EntryType,
+        note: String? = null,
+        timestamp: Long = System.currentTimeMillis(),
+        imageBitmap: Bitmap? = null
+    ) {
+        if (currentUserId.isEmpty()) {
+            println("EntryRepository: Cannot add entry - no user logged in")
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val imagePath = imageBitmap?.let {
+                    saveImageToInternalStorage(context, it)
+                }
+
+                val entry = Entry(
+                    id = UUID.randomUUID().toString(),
+                    amount = amount,
+                    categoryId = categoryId,
+                    note = note,
+                    timestamp = timestamp,
+                    type = type,
+                    attachmentUri = imagePath,
+                    userId = currentUserId
+                )
+
+                entryDao.insertEntry(entry)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
     fun addEntry(entry: Entry) {
-        _entries.value = _entries.value + entry
+        if (currentUserId.isEmpty()) {
+            println("EntryRepository: Cannot add entry - no user logged in")
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val entryWithUser = entry.copy(userId = currentUserId)
+                entryDao.insertEntry(entryWithUser)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    companion object {
+        @Volatile
+        private var instance: EntryRepository? = null
+
+        fun getInstance(context: Context): EntryRepository {
+            return instance ?: synchronized(this) {
+                instance ?: EntryRepository(context.applicationContext).also {
+                    instance = it
+                }
+            }
+        }
     }
 }

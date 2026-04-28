@@ -17,7 +17,10 @@ data class Entry(
 
     val type: EntryType,
 
-    val attachmentUri: String? = null
+    val attachmentUri: String? = null,
+
+    // NEW: User ID from Supabase Auth - links each entry to a specific user
+    val userId: String = ""
 )
 
 enum class EntryType {

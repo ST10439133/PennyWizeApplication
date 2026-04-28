@@ -2,9 +2,10 @@ package com.CFC.pennywizeapp.navigation
 
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.*
-import androidx.navigation.NavGraph.Companion.findStartDestination
+import com.CFC.pennywizeapp.data.EntryRepository
 import com.CFC.pennywizeapp.ui.LoginScreen
 import com.CFC.pennywizeapp.ui.SignupScreen
 import com.CFC.pennywizeapp.viewmodel.AuthViewModel
@@ -13,7 +14,15 @@ import com.CFC.pennywizeapp.viewmodel.AuthViewModel
 fun AppNavGraph() {
 
     val navController = rememberNavController()
-    val authViewModel: AuthViewModel = viewModel()
+    val context = LocalContext.current
+
+    // Initialize repositories
+    val entryRepository = EntryRepository.getInstance(context)
+
+    // Create AuthViewModel with entryRepository dependency
+    val authViewModel: AuthViewModel = viewModel(
+        factory = AuthViewModelFactory(entryRepository)
+    )
 
     LaunchedEffect(Unit) {
         authViewModel.checkAuthStatus()
@@ -49,5 +58,15 @@ fun AppNavGraph() {
                 authViewModel = authViewModel
             )
         }
+    }
+}
+
+// AuthViewModel Factory
+class AuthViewModelFactory(
+    private val entryRepository: EntryRepository
+) : androidx.lifecycle.ViewModelProvider.Factory {
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+        @Suppress("UNCHECKED_CAST")
+        return AuthViewModel(entryRepository) as T
     }
 }

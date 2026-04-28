@@ -1,8 +1,15 @@
 package com.CFC.pennywizeapp.models
 
-data class Budget(
-    val minGoal: Double = 0.0,
-    val maxGoal: Double = 0.0,
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "budgets")
+data class BudgetEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val userId: String,           // Links to Supabase user
+    val minGoal: Double,
+    val maxGoal: Double,
     val currentTotal: Double = 0.0
 ) {
     val progress: Float

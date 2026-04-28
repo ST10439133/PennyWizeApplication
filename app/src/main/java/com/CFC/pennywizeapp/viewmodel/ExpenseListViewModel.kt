@@ -1,29 +1,27 @@
-package com.CFC.pennywizeapp.viewmodels
+package com.CFC.pennywizeapp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.CFC.pennywizeapp.data.EntryRepository
 import com.CFC.pennywizeapp.data.CategoryRepository
-import com.CFC.pennywizeapp.models.CategoryTotal
-import com.CFC.pennywizeapp.models.Entry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import java.util.Calendar
 
-class ExpenseListViewModel : ViewModel() {
-    // Stores the selected date in milliseconds
+class ExpenseListViewModel(
+    private val entryRepository: EntryRepository,
+    private val categoryRepository: CategoryRepository
+) : ViewModel() {
+
     private val _selectedDate = MutableStateFlow<Long?>(null)
 
     val filteredExpenses = combine(
-        EntryRepository.entries,
-        CategoryRepository.categories,
+        entryRepository.entries,
+        categoryRepository.categories,
         _selectedDate
     ) { entries, categories, selectedDate ->
         if (selectedDate == null) {
-            // If no date is selected, show all or none (adjust based on preference)
             emptyList()
         } else {
-            // Calculate the start and end of the selected day
             val calendar = Calendar.getInstance().apply { timeInMillis = selectedDate }
             calendar.set(Calendar.HOUR_OF_DAY, 0)
             calendar.set(Calendar.MINUTE, 0)

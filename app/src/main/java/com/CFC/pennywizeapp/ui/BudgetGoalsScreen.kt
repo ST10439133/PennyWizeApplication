@@ -16,34 +16,39 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.CFC.pennywizeapp.data.BudgetRepository
-import com.CFC.pennywizeapp.viewmodels.BudgetGoalsViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.CFC.pennywizeapp.viewmodel.BudgetGoalsViewModel
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BudgetGoalsScreen(
-    viewModel: BudgetGoalsViewModel = viewModel(),
-    onNavigateToAdd: () -> Unit // Added callback for navigation
+    viewModel: BudgetGoalsViewModel,
+    onNavigateToAdd: () -> Unit
 ) {
-    val budget by viewModel.budgetState.collectAsState()
-    val income by viewModel.totalIncome.collectAsState()
-    val expenses by viewModel.totalExpenses.collectAsState()
+    val budget by viewModel.budgetState.collectAsStateWithLifecycle()
+    val income by viewModel.totalIncome.collectAsStateWithLifecycle()
+    val expenses by viewModel.totalExpenses.collectAsStateWithLifecycle()
 
-    var minText by remember { mutableStateOf(budget.minGoal.toString()) }
-    var maxText by remember { mutableStateOf(budget.maxGoal.toString()) }
+    // Use budget values from StateFlow (fallback to defaults if null)
+    val minGoal = budget?.minGoal ?: 500.0
+    val maxGoal = budget?.maxGoal ?: 2000.0
+    val currentTotal = budget?.currentTotal ?: 0.0
+    val progress = budget?.progress ?: 0f
+    val status = budget?.status ?: "Within Range"
 
-    LaunchedEffect(expenses) {
-        BudgetRepository.updateCurrentTotal(expenses)
-    }
+    var minText by remember(minGoal) { mutableStateOf(minGoal.toString()) }
+    var maxText by remember(maxGoal) { mutableStateOf(maxGoal.toString()) }
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(title = { Text("Budget Analysis", fontWeight = FontWeight.SemiBold) })
+            CenterAlignedTopAppBar(
+                title = { Text("Budget Analysis", fontWeight = FontWeight.SemiBold) }
+            )
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = onNavigateToAdd, // Triggers navigation to the Add screen
+                onClick = onNavigateToAdd,
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
                 Icon(Icons.Default.Add, contentDescription = null)
@@ -64,10 +69,10 @@ fun BudgetGoalsScreen(
 
             Box(contentAlignment = Alignment.Center, modifier = Modifier.size(280.dp)) {
                 CircularProgressIndicator(
-                    progress = { budget.progress },
+                    progress = { progress },
                     modifier = Modifier.fillMaxSize(),
                     strokeWidth = 16.dp,
-                    color = if (budget.status == "Above Maximum") Color.Red else MaterialTheme.colorScheme.primary,
+                    color = if (status == "Above Maximum") Color.Red else MaterialTheme.colorScheme.primary,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant,
                     strokeCap = StrokeCap.Round
                 )
@@ -78,7 +83,11 @@ fun BudgetGoalsScreen(
                     HorizontalDivider(Modifier.width(80.dp).padding(vertical = 8.dp))
                     GoalInputField(maxText, { maxText = it }, "Max")
                     IconButton(onClick = {
-                        viewModel.saveGoals(minText.toDoubleOrNull() ?: 0.0, maxText.toDoubleOrNull() ?: 0.0)
+                        val min = minText.toDoubleOrNull() ?: 500.0
+                        val max = maxText.toDoubleOrNull() ?: 2000.0
+                        if (min > 0 && max > 0 && min <= max) {
+                            viewModel.saveGoals(min, max)
+                        }
                     }) {
                         Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
                             Icon(Icons.Default.Check, null, modifier = Modifier.padding(8.dp))
@@ -91,7 +100,7 @@ fun BudgetGoalsScreen(
 }
 
 @Composable
-fun BudgetSummaryCard(title: String, amount: Double, color: Color, modifier: Modifier) {
+fun BudgetSummaryCard(title: String, amount: Double, color: Color, modifier: Modifier = Modifier) {
     Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f))) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(title, color = color, style = MaterialTheme.typography.labelMedium)

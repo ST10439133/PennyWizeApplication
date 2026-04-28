@@ -13,11 +13,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.CFC.pennywizeapp.models.EntryType
-import com.CFC.pennywizeapp.viewmodels.ExpenseListViewModel
+import com.CFC.pennywizeapp.viewmodel.ExpenseListViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExpenseListScreen(viewModel: ExpenseListViewModel = viewModel()) {
+fun ExpenseListScreen(viewModel: ExpenseListViewModel) {
     val datePickerState = rememberDatePickerState()
     val filteredEntries by viewModel.filteredExpenses.collectAsState(initial = emptyList())
 
