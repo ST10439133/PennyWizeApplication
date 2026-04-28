@@ -75,34 +75,7 @@ fun resizeBitmap(bitmap: Bitmap, maxWidth: Int, maxHeight: Int): Bitmap {
 }
 
 /**
- * Saves bitmap to INTERNAL storage (private to app) - BEST for RoomDB
- * Returns the file path as String to store in database
- */
-fun saveImageToInternalStorage(context: Context, bitmap: Bitmap): String? {
-    return try {
-        val receiptsDir = File(context.filesDir, "receipts")
-        if (!receiptsDir.exists()) {
-            receiptsDir.mkdirs()
-        }
-
-        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val fileName = "receipt_${timeStamp}_${System.currentTimeMillis()}.jpg"
-        val file = File(receiptsDir, fileName)
-
-        FileOutputStream(file).use { outputStream ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
-        }
-
-        println("ImageUtils: Image saved to internal storage: ${file.absolutePath}")
-        file.absolutePath
-    } catch (e: Exception) {
-        e.printStackTrace()
-        null
-    }
-}
-
-/**
- * Saves bitmap to device gallery using MediaStore (for user to view later)
+ * Saves bitmap to device gallery using MediaStore (no FileProvider needed!)
  * Returns the URI of the saved image, or null if save failed
  */
 fun saveImageToGallery(context: Context, bitmap: Bitmap): Uri? {
@@ -110,6 +83,7 @@ fun saveImageToGallery(context: Context, bitmap: Bitmap): Uri? {
     val displayName = "PennyWize_${timeStamp}.jpg"
 
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        // Android 10+ uses MediaStore (Scoped Storage)
         val resolver = context.contentResolver
         val contentValues = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
@@ -125,6 +99,7 @@ fun saveImageToGallery(context: Context, bitmap: Bitmap): Uri? {
         }
         uri
     } else {
+        // Android 9 and below (Direct file access)
         @Suppress("DEPRECATION")
         val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
         val pennyWizeDir = File(picturesDir, "PennyWize")
@@ -143,35 +118,5 @@ fun saveImageToGallery(context: Context, bitmap: Bitmap): Uri? {
             e.printStackTrace()
             null
         }
-    }
-}
-
-/**
- * Load image from internal storage by file path
- */
-fun loadImageFromInternalStorage(path: String): Bitmap? {
-    return try {
-        val file = File(path)
-        if (file.exists()) {
-            BitmapFactory.decodeFile(path)
-        } else {
-            null
-        }
-    } catch (e: Exception) {
-        e.printStackTrace()
-        null
-    }
-}
-
-/**
- * Delete image from internal storage
- */
-fun deleteImageFromInternalStorage(path: String): Boolean {
-    return try {
-        val file = File(path)
-        file.delete()
-    } catch (e: Exception) {
-        e.printStackTrace()
-        false
     }
 }
