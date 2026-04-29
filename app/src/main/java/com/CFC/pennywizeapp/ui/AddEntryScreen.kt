@@ -3,6 +3,7 @@ package com.CFC.pennywizeapp.ui.screens
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -11,10 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,18 +22,30 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.CFC.pennywizeapp.models.*
 import com.CFC.pennywizeapp.utils.compressBitmap
 import com.CFC.pennywizeapp.utils.resizeBitmap
+import com.CFC.pennywizeapp.viewmodel.EntryViewModel
+import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.foundation.Image
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Add
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEntryScreen(
     categories: List<Category>,
+    entryViewModel: EntryViewModel,  // Added ViewModel parameter
     onSave: (Entry) -> Unit,
     onBack: () -> Unit
 ) {
@@ -48,12 +58,18 @@ fun AddEntryScreen(
     var expandedType by remember { mutableStateOf(false) }
     var expandedCategory by remember { mutableStateOf(false) }
 
+    // Category creation states
+    var showAddCategoryDialog by remember { mutableStateOf(false) }
+    var pendingCategoryType by remember { mutableStateOf<CategoryType?>(null) }
+
     // CAMERA & GALLERY states (replaces file picker)
     var showCamera by remember { mutableStateOf(false) }
     var receiptImage by remember { mutableStateOf<Bitmap?>(null) }
     var selectedAttachmentUri by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleScope = lifecycleOwner.lifecycleScope
 
     // Gallery picker (replaces old file picker)
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -143,7 +159,7 @@ fun AddEntryScreen(
                     }
                 }
 
-                // 🔽 CATEGORY DROPDOWN (FIXED HERE)
+                // 🔽 CATEGORY DROPDOWN WITH "ADD NEW" OPTION
                 ExposedDropdownMenuBox(
                     expanded = expandedCategory,
                     onExpandedChange = { expandedCategory = !expandedCategory }
@@ -153,7 +169,7 @@ fun AddEntryScreen(
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Category") },
-                        placeholder = { Text("Select Category") },
+                        placeholder = { Text("Select Category or Create New") },
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
 
@@ -161,22 +177,52 @@ fun AddEntryScreen(
                         expanded = expandedCategory,
                         onDismissRequest = { expandedCategory = false }
                     ) {
-
                         val mappedType = runCatching {
                             CategoryType.valueOf(selectedType.name)
                         }.getOrNull()
 
-                        categories
-                            .filter { it.type == mappedType }
-                            .forEach { category ->
-                                DropdownMenuItem(
-                                    text = { Text(category.name) },
-                                    onClick = {
-                                        selectedCategory = category
-                                        expandedCategory = false
+                        // Filter categories by type
+                        val filteredCategories = categories.filter { it.type == mappedType }
+
+                        // Show existing categories
+                        filteredCategories.forEach { category ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(category.name)
                                     }
-                                )
+                                },
+                                onClick = {
+                                    selectedCategory = category
+                                    expandedCategory = false
+                                }
+                            )
+                        }
+
+                        // Add divider if there are existing categories
+                        if (filteredCategories.isNotEmpty()) {
+                            HorizontalDivider()
+                        }
+
+                        // "Add New Category" option
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Add,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("+ Create New Category", color = MaterialTheme.colorScheme.primary)
+                                }
+                            },
+                            onClick = {
+                                expandedCategory = false
+                                pendingCategoryType = mappedType
+                                showAddCategoryDialog = true
                             }
+                        )
                     }
                 }
 
@@ -334,8 +380,7 @@ fun AddEntryScreen(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 Button(onClick = {
-                    selectedDate =
-                        datePickerState.selectedDateMillis ?: selectedDate
+                    selectedDate = datePickerState.selectedDateMillis ?: selectedDate
                     showDatePicker = false
                 }) {
                     Text("OK")
@@ -344,6 +389,33 @@ fun AddEntryScreen(
         ) {
             DatePicker(state = datePickerState)
         }
+    }
+
+    // Add Category Dialog
+    if (showAddCategoryDialog && pendingCategoryType != null) {
+        AddCategoryDialog(
+            categoryType = pendingCategoryType!!,
+            onDismiss = {
+                showAddCategoryDialog = false
+                pendingCategoryType = null
+            },
+            onCategoryCreated = { newCategoryName ->
+                // Create the category and select it
+                lifecycleScope.launch {
+                    try {
+                        val newCategory = entryViewModel.createAndSelectCategory(
+                            name = newCategoryName,
+                            type = pendingCategoryType!!
+                        )
+                        selectedCategory = newCategory
+                        // Show success message
+                        Toast.makeText(context, "Category created: $newCategoryName", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Failed to create category: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        )
     }
 }
 

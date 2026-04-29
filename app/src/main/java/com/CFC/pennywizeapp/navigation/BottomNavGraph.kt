@@ -35,7 +35,7 @@ fun BottomNavGraph(
     // Initialize repositories with RoomDB
     val entryRepository = EntryRepository.getInstance(context)
     val categoryRepository = CategoryRepository.getInstance(context)
-    val budgetRepository = BudgetRepository.getInstance(context)  // ← ADD THIS
+    val budgetRepository = BudgetRepository.getInstance(context)
 
     // Create ViewModels with dependencies
     val entryViewModel: EntryViewModel = viewModel(
@@ -43,7 +43,7 @@ fun BottomNavGraph(
     )
 
     val budgetGoalsViewModel: BudgetGoalsViewModel = viewModel(
-        factory = BudgetGoalsViewModelFactory(entryRepository, budgetRepository)  // ← UPDATE
+        factory = BudgetGoalsViewModelFactory(entryRepository, budgetRepository)
     )
 
     val expenseListViewModel: ExpenseListViewModel = viewModel(
@@ -60,7 +60,7 @@ fun BottomNavGraph(
     LaunchedEffect(currentUserId) {
         if (currentUserId != null && currentUserId.isNotEmpty()) {
             entryRepository.setCurrentUser(currentUserId)
-            budgetRepository.setCurrentUser(currentUserId)  // ← ADD THIS
+            budgetRepository.setCurrentUser(currentUserId)
         }
     }
 
@@ -68,7 +68,7 @@ fun BottomNavGraph(
     DisposableEffect(Unit) {
         onDispose {
             entryRepository.clearCurrentUser()
-            budgetRepository.clearCurrentUser()  // ← ADD THIS
+            budgetRepository.clearCurrentUser()
         }
     }
 
@@ -142,6 +142,7 @@ fun BottomNavGraph(
             composable(Routes.Add) {
                 AddEntryScreen(
                     categories = categories,
+                    entryViewModel = entryViewModel,  // Pass the ViewModel
                     onSave = { entry ->
                         entryViewModel.insertEntry(entry)
                         navController.navigate(Routes.History) {
@@ -174,7 +175,7 @@ class EntryViewModelFactory(
 
 class BudgetGoalsViewModelFactory(
     private val entryRepository: EntryRepository,
-    private val budgetRepository: BudgetRepository  // ← ADD THIS
+    private val budgetRepository: BudgetRepository
 ) : androidx.lifecycle.ViewModelProvider.Factory {
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
         @Suppress("UNCHECKED_CAST")

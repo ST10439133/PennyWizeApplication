@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 class CategoryRepository private constructor(private val context: Context) {
 
@@ -61,6 +62,48 @@ class CategoryRepository private constructor(private val context: Context) {
         )
 
         categoryDao.insertCategories(defaultCategories)
+    }
+
+    /**
+     * Create a new category
+     * @param name The category name
+     * @param type The category type (INCOME or EXPENSE)
+     * @param color Optional hex color string (auto-generated if not provided)
+     * @param icon Optional icon name (defaults to "label")
+     * @return The newly created Category object
+     */
+    suspend fun createCategory(name: String, type: CategoryType, color: String = generateRandomColor(), icon: String = "label"): Category {
+        val newCategory = Category(
+            id = UUID.randomUUID().toString(),
+            name = name,
+            type = type,
+            color = color,
+            icon = icon
+        )
+        categoryDao.insertCategory(newCategory)
+
+        // Refresh the categories list to include the new category
+        CoroutineScope(Dispatchers.IO).launch {
+            categoryDao.getAllCategories()
+                .catch { e -> e.printStackTrace() }
+                .collect { categoryList ->
+                    _categories.value = categoryList
+                }
+        }
+
+        return newCategory
+    }
+
+    /**
+     * Generate a random color for new categories
+     * @return Hex color string
+     */
+    private fun generateRandomColor(): String {
+        val colors = listOf(
+            "#FF5733", "#33FF57", "#3357FF", "#F333FF", "#FF33A8",
+            "#33FFF5", "#F5FF33", "#FF8C33", "#8C33FF", "#33FF8C"
+        )
+        return colors.random()
     }
 
     companion object {
